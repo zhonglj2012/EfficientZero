@@ -3,8 +3,10 @@ import torch
 from core.config import BaseConfig
 from core.utils import make_atari, WarpFrame, EpisodicLifeEnv
 from core.dataset import Transforms
-from .env_wrapper import AtariWrapper
+from .env_wrapper import AtariWrapper, DefaultWrapper
 from .model import EfficientZeroNet
+
+import gym
 
 
 class AtariConfig(BaseConfig):
@@ -138,19 +140,8 @@ class AtariConfig(BaseConfig):
                 max_moves = self.test_max_moves
             env = make_atari(self.env_name, skip=self.frame_skip, max_episode_steps=max_moves)
         else:
-            env = make_atari(self.env_name, skip=self.frame_skip, max_episode_steps=self.max_moves)
-
-        if self.episode_life and not test:
-            env = EpisodicLifeEnv(env)
-        env = WarpFrame(env, width=self.obs_shape[1], height=self.obs_shape[2], grayscale=self.gray_scale)
-
-        if seed is not None:
-            env.seed(seed)
-
-        if save_video:
-            from gym.wrappers import Monitor
-            env = Monitor(env, directory=save_path, force=True, video_callable=video_callable, uid=uid)
-        return AtariWrapper(env, discount=self.discount, cvt_string=self.cvt_string)
+            env = gym.make(self.env_name)
+        return DefaultWrapper(env, discount=self.discount, cvt_string=self.cvt_string)
 
     def scalar_reward_loss(self, prediction, target):
         return -(torch.log_softmax(prediction, dim=1) * target).sum(1)
