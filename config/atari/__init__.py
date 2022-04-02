@@ -10,23 +10,23 @@ from .model import EfficientZeroNet
 class AtariConfig(BaseConfig):
     def __init__(self):
         super(AtariConfig, self).__init__(
-            training_steps=100000,
-            last_steps=20000,
-            test_interval=10000,
-            log_interval=1000,
-            vis_interval=1000,
-            test_episodes=32,
-            checkpoint_interval=100,
-            target_model_interval=200,
-            save_ckpt_interval=10000,
-            max_moves=108000,
-            test_max_moves=12000,
-            history_length=400,
+            training_steps=10000,
+            last_steps=2000,
+            test_interval=1000,
+            log_interval=100,
+            vis_interval=100,
+            test_episodes=4,
+            checkpoint_interval=10,
+            target_model_interval=20,
+            save_ckpt_interval=1000,
+            max_moves=10800,
+            test_max_moves=1200,
+            history_length=40,
             discount=0.997,
             dirichlet_alpha=0.3,
             value_delta_max=0.01,
-            num_simulations=50,
-            batch_size=256,
+            num_simulations=5,
+            batch_size=32,
             td_steps=5,
             num_actors=1,
             # network initialization/ & normalization
@@ -40,11 +40,11 @@ class AtariConfig(BaseConfig):
             lr_warm_up=0.01,
             lr_init=0.2,
             lr_decay_rate=0.1,
-            lr_decay_steps=100000,
+            lr_decay_steps=10000,
             auto_td_steps_ratio=0.3,
             # replay window
             start_transitions=8,
-            total_transitions=100 * 1000,
+            total_transitions=10 * 1000,
             transition_num=1,
             # frame skip & stack observation
             frame_skip=4,
@@ -55,18 +55,18 @@ class AtariConfig(BaseConfig):
             policy_loss_coeff=1,
             consistency_coeff=2,
             # reward sum
-            lstm_hidden_size=512,
+            lstm_hidden_size=64,
             lstm_horizon_len=5,
             # siamese
-            proj_hid=1024,
-            proj_out=1024,
-            pred_hid=512,
-            pred_out=1024,)
+            proj_hid=128,
+            proj_out=128,
+            pred_hid=64,
+            pred_out=128,)
         self.discount **= self.frame_skip
         self.max_moves //= self.frame_skip
         self.test_max_moves //= self.frame_skip
 
-        self.start_transitions = self.start_transitions * 1000 // self.frame_skip
+        self.start_transitions = self.start_transitions * 100 // self.frame_skip
         self.start_transitions = max(1, self.start_transitions)
 
         self.bn_mt = 0.1
