@@ -49,7 +49,7 @@ def mlp(
     return nn.Sequential(*layers)
 
 
-def conv3x3(in_channels, out_channels, stride=1):
+def conv1x1(in_channels, out_channels, stride=1):
     return nn.Conv2d(
         in_channels, out_channels, kernel_size=1, stride=stride, padding=1, bias=False
     )
@@ -59,9 +59,9 @@ def conv3x3(in_channels, out_channels, stride=1):
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, downsample=None, stride=1, momentum=0.1):
         super().__init__()
-        self.conv1 = conv3x3(in_channels, out_channels, stride)
+        self.conv1 = conv1x1(in_channels, out_channels, stride)
         self.bn1 = nn.BatchNorm2d(out_channels, momentum=momentum)
-        self.conv2 = conv3x3(out_channels, out_channels)
+        self.conv2 = conv1x1(out_channels, out_channels)
         self.bn2 = nn.BatchNorm2d(out_channels, momentum=momentum)
         self.downsample = downsample
 
@@ -162,7 +162,7 @@ class RepresentationNetwork(nn.Module):
                 observation_shape[0],
                 num_channels,
             )
-        self.conv = conv3x3(
+        self.conv = conv1x1(
             observation_shape[0],
             num_channels,
         )
@@ -227,7 +227,7 @@ class DynamicsNetwork(nn.Module):
         self.num_channels = num_channels
         self.lstm_hidden_size = lstm_hidden_size
 
-        self.conv = conv3x3(num_channels, num_channels - 1)
+        self.conv = conv1x1(num_channels, num_channels - 1)
         self.bn = nn.BatchNorm2d(num_channels - 1, momentum=momentum)
         self.resblocks = nn.ModuleList(
             [ResidualBlock(num_channels - 1, num_channels - 1, momentum=momentum) for _ in range(num_blocks)]
