@@ -51,7 +51,7 @@ def mlp(
 
 def conv3x3(in_channels, out_channels, stride=1):
     return nn.Conv2d(
-        in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False
+        in_channels, out_channels, kernel_size=1, stride=stride, padding=1, bias=False
     )
 
 
@@ -90,7 +90,7 @@ class DownSample(nn.Module):
         self.conv1 = nn.Conv2d(
             in_channels,
             out_channels // 2,
-            kernel_size=3,
+            kernel_size=1,
             stride=2,
             padding=1,
             bias=False,
@@ -102,7 +102,7 @@ class DownSample(nn.Module):
         self.conv2 = nn.Conv2d(
             out_channels // 2,
             out_channels,
-            kernel_size=3,
+            kernel_size=1,
             stride=2,
             padding=1,
             bias=False,
@@ -111,11 +111,11 @@ class DownSample(nn.Module):
         self.resblocks2 = nn.ModuleList(
             [ResidualBlock(out_channels, out_channels, momentum=momentum) for _ in range(1)]
         )
-        self.pooling1 = nn.AvgPool2d(kernel_size=3, stride=2, padding=1)
+        self.pooling1 = nn.AvgPool2d(kernel_size=1, stride=2, padding=1)
         self.resblocks3 = nn.ModuleList(
             [ResidualBlock(out_channels, out_channels, momentum=momentum) for _ in range(1)]
         )
-        self.pooling2 = nn.AvgPool2d(kernel_size=3, stride=2, padding=1)
+        self.pooling2 = nn.AvgPool2d(kernel_size=1, stride=2, padding=1)
 
     def forward(self, x):
         x = self.conv1(x)
