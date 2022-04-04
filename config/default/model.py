@@ -91,7 +91,7 @@ class DownSample(nn.Module):
             in_channels,
             out_channels // 2,
             kernel_size=1,
-            stride=2,
+            cstride=1,
             padding=1,
             bias=False,
         )
@@ -103,19 +103,19 @@ class DownSample(nn.Module):
             out_channels // 2,
             out_channels,
             kernel_size=1,
-            stride=2,
+            cstride=1,
             padding=1,
             bias=False,
         )
-        self.downsample_block = ResidualBlock(out_channels // 2, out_channels, momentum=momentum, stride=2, downsample=self.conv2)
+        self.downsample_block = ResidualBlock(out_channels // 2, out_channels, momentum=momentum, cstride=1, downsample=self.conv2)
         self.resblocks2 = nn.ModuleList(
             [ResidualBlock(out_channels, out_channels, momentum=momentum) for _ in range(1)]
         )
-        self.pooling1 = nn.AvgPool2d(kernel_size=1, stride=2, padding=1)
+        self.pooling1 = nn.AvgPool2d(kernel_size=1, cstride=1, padding=1)
         self.resblocks3 = nn.ModuleList(
             [ResidualBlock(out_channels, out_channels, momentum=momentum) for _ in range(1)]
         )
-        self.pooling2 = nn.AvgPool2d(kernel_size=1, stride=2, padding=1)
+        self.pooling2 = nn.AvgPool2d(kernel_size=1, cstride=1, padding=1)
 
     def forward(self, x):
         x = self.conv1(x)
