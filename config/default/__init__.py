@@ -1,7 +1,7 @@
 import torch
 
 from core.config import BaseConfig
-from core.utils import make_atari, WarpFrame, EpisodicLifeEnv
+from core.utils import make_default, WarpFrame, EpisodicLifeEnv
 from core.dataset import Transforms
 from .env_wrapper import AtariWrapper, DefaultWrapper
 from .model import EfficientZeroNet
@@ -138,7 +138,7 @@ class DefaultConfig(BaseConfig):
                 max_moves = 108000 // self.frame_skip
             else:
                 max_moves = self.test_max_moves
-            env = make_atari(self.env_name, skip=self.frame_skip, max_episode_steps=max_moves)
+            env = make_default(self.env_name, skip=self.frame_skip, max_episode_steps=max_moves)
         else:
             env = gym.make(self.env_name)
         return DefaultWrapper(env, discount=self.discount, cvt_string=self.cvt_string)
