@@ -3,7 +3,7 @@ import torch
 from core.config import BaseConfig
 from core.utils import make_default, WarpFrame, EpisodicLifeEnv
 from core.dataset import Transforms
-from .env_wrapper import AtariWrapper, DefaultWrapper
+from .env_wrapper import DefaultWrapper
 from .model import EfficientZeroNet
 
 import gym
@@ -36,8 +36,7 @@ class DefaultConfig(BaseConfig):
             init_zero=True,
             clip_reward=True,
             # storage efficient
-            cvt_string=True,
-            image_based=True,
+            image_based=False,
             # lr scheduler
             lr_warm_up=0.01,
             lr_init=0.2,
@@ -141,7 +140,7 @@ class DefaultConfig(BaseConfig):
             env = make_default(self.env_name, skip=self.frame_skip, max_episode_steps=max_moves)
         else:
             env = gym.make(self.env_name)
-        return DefaultWrapper(env, discount=self.discount, cvt_string=self.cvt_string)
+        return DefaultWrapper(env, discount=self.discount)
 
     def scalar_reward_loss(self, prediction, target):
         return -(torch.log_softmax(prediction, dim=1) * target).sum(1)
