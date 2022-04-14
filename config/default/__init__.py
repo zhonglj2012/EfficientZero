@@ -21,8 +21,8 @@ class DefaultConfig(BaseConfig):
             checkpoint_interval=10,
             target_model_interval=20,
             save_ckpt_interval=1000,
-            max_moves=10800,
-            test_max_moves=1200,
+            max_moves=1000,
+            test_max_moves=1000,
             history_length=40,
             discount=0.997,
             dirichlet_alpha=0.3,
@@ -139,7 +139,7 @@ class DefaultConfig(BaseConfig):
                 max_moves = self.test_max_moves
             env = make_default(self.env_name, skip=self.frame_skip, max_episode_steps=max_moves)
         else:
-            env = gym.make(self.env_name)
+            env = make_default(self.env_name, skip=self.frame_skip, max_episode_steps=self.max_moves)
         return DefaultWrapper(env, discount=self.discount)
 
     def scalar_reward_loss(self, prediction, target):
