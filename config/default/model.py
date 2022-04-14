@@ -105,19 +105,11 @@ class RepresentationNetwork(nn.Module):
             True -> do downsampling for observations. (For board games, do not need)
         """
         super().__init__()
-        self.mlp = mlp(
-            observation_shape[0],
-            num_blocks,
-            num_channels
-        )
+        self.fc = mlp(32, [32, 32], 32, momentum=momentum)
 
     def forward(self, x):
-        
-        print('cp1')
-        x = x.view(-1, 1, 1)
-        x = self.mlp(x)
-        print('cp2')
-        
+        x = x.view(-1, 32)
+        x = self.fc(x)
         return x
 
     def get_param_mean(self):
@@ -180,25 +172,26 @@ class DynamicsNetwork(nn.Module):
         self.lstm = nn.LSTM(input_size=self.block_output_size_reward, hidden_size=self.lstm_hidden_size)
         self.bn_value_prefix = nn.BatchNorm1d(self.lstm_hidden_size, momentum=momentum)
         self.fc = mlp(self.lstm_hidden_size, fc_reward_layers, full_support_size, init_zero=init_zero, momentum=momentum)
+        self.fc2 = mlp(32, [32, 32], 32, momentum=momentum)
+        self.fc3 = mlp(32, [32, 32], 1, momentum=momentum)
+
+
 
     def forward(self, x, reward_hidden):
-        state = x[:,:-1,:,:]
-        x = self.conv(x)
-        x = self.bn(x)
-
-        x += state
-        x = nn.functional.relu(x)
-
-        for block in self.resblocks:
-            x = block(x)
+        print('entry2', x.shape)
+        x = self.fc2(x)
         state = x
 
-        x = self.conv1x1_reward(x)
-        x = self.bn_reward(x)
-        x = nn.functional.relu(x)
+        print('cp1', x.shape)
 
-        x = x.view(-1, self.block_output_size_reward).unsqueeze(0)
+        
+        x = self.fc3(x)
+
+        print('cp2', x.shape)
+
+        # x = x.view(-1, self.block_output_size_reward).unsqueeze(0)
         value_prefix, reward_hidden = self.lstm(x, reward_hidden)
+        print('cp3', x.shape)
         value_prefix = value_prefix.squeeze(0)
         value_prefix = self.bn_value_prefix(value_prefix)
         value_prefix = nn.functional.relu(value_prefix)

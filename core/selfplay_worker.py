@@ -270,7 +270,7 @@ class DataWorker(object):
 
                     if self.config.amp_type == 'torch_amp':
                         with autocast():
-                            print(stack_obs.shape)
+                            # print(stack_obs.shape)
                             network_output = model.initial_inference(stack_obs.float())
                     else:
                         network_output = model.initial_inference(stack_obs.float())
