@@ -181,17 +181,9 @@ class DynamicsNetwork(nn.Module):
         print('entry2', x.shape)
         x = self.fc2(x)
         state = x
-
-        print('cp1', x.shape)
-
-        
         x = self.fc3(x)
-
-        print('cp2', x.shape)
-
         # x = x.view(-1, self.block_output_size_reward).unsqueeze(0)
         value_prefix, reward_hidden = self.lstm(x, reward_hidden)
-        print('cp3', x.shape)
         value_prefix = value_prefix.squeeze(0)
         value_prefix = self.bn_value_prefix(value_prefix)
         value_prefix = nn.functional.relu(value_prefix)
@@ -276,6 +268,7 @@ class PredictionNetwork(nn.Module):
         self.fc_policy = mlp(self.block_output_size_policy, fc_policy_layers, action_space_size, init_zero=init_zero, momentum=momentum)
 
     def forward(self, x):
+        print('cp1',x.shape)
         for block in self.resblocks:
             x = block(x)
         value = self.conv1x1_value(x)
