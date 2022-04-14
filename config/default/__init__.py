@@ -96,10 +96,7 @@ class DefaultConfig(BaseConfig):
 
     def set_game(self, env_name, save_video=False, save_path=None, video_callable=None):
         self.env_name = env_name
-        # gray scale
-        if self.gray_scale:
-            self.image_channel = 1
-        obs_shape = (1, 1, 8)
+        obs_shape = (8, 1, 1)
         self.obs_shape = (obs_shape[0] * self.stacked_observations, obs_shape[1], obs_shape[2])
 
         game = self.new_game()
