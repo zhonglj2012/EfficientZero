@@ -82,57 +82,6 @@ class ResidualBlock(nn.Module):
         out = nn.functional.relu(out)
         return out
 
-
-# Downsample observations before representation network (See paper appendix Network Architecture)
-class DownSample(nn.Module):
-    def __init__(self, in_channels, out_channels, momentum=0.1):
-        super().__init__()
-        self.conv1 = nn.Conv2d(
-            in_channels,
-            out_channels // 2,
-            kernel_size=1,
-            cstride=1,
-            padding=1,
-            bias=False,
-        )
-        self.bn1 = nn.BatchNorm2d(out_channels // 2, momentum=momentum)
-        self.resblocks1 = nn.ModuleList(
-            [ResidualBlock(out_channels // 2, out_channels // 2, momentum=momentum) for _ in range(1)]
-        )
-        self.conv2 = nn.Conv2d(
-            out_channels // 2,
-            out_channels,
-            kernel_size=1,
-            cstride=1,
-            padding=1,
-            bias=False,
-        )
-        self.downsample_block = ResidualBlock(out_channels // 2, out_channels, momentum=momentum, cstride=1, downsample=self.conv2)
-        self.resblocks2 = nn.ModuleList(
-            [ResidualBlock(out_channels, out_channels, momentum=momentum) for _ in range(1)]
-        )
-        self.pooling1 = nn.AvgPool2d(kernel_size=1, cstride=1, padding=1)
-        self.resblocks3 = nn.ModuleList(
-            [ResidualBlock(out_channels, out_channels, momentum=momentum) for _ in range(1)]
-        )
-        self.pooling2 = nn.AvgPool2d(kernel_size=1, cstride=1, padding=1)
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = nn.functional.relu(x)
-        for block in self.resblocks1:
-            x = block(x)
-        x = self.downsample_block(x)
-        for block in self.resblocks2:
-            x = block(x)
-        x = self.pooling1(x)
-        for block in self.resblocks3:
-            x = block(x)
-        x = self.pooling2(x)
-        return x
-
-
 # Encode the observations into hidden states
 class RepresentationNetwork(nn.Module):
     def __init__(
@@ -156,31 +105,19 @@ class RepresentationNetwork(nn.Module):
             True -> do downsampling for observations. (For board games, do not need)
         """
         super().__init__()
-        self.downsample = downsample
-        if self.downsample:
-            self.downsample_net = DownSample(
-                observation_shape[0],
-                num_channels,
-            )
-        self.conv = conv1x1(
+        self.mlp = mlp(
             observation_shape[0],
-            num_channels,
-        )
-        self.bn = nn.BatchNorm2d(num_channels, momentum=momentum)
-        self.resblocks = nn.ModuleList(
-            [ResidualBlock(num_channels, num_channels, momentum=momentum) for _ in range(num_blocks)]
+            num_blocks,
+            num_channels
         )
 
     def forward(self, x):
-        if self.downsample:
-            x = self.downsample_net(x)
-        else:
-            x = self.conv(x)
-            x = self.bn(x)
-            x = nn.functional.relu(x)
-
-        for block in self.resblocks:
-            x = block(x)
+        
+        print('cp1')
+        x = x.view(-1, 1, 1)
+        x = self.mlp(x)
+        print('cp2')
+        
         return x
 
     def get_param_mean(self):
