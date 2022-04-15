@@ -111,7 +111,6 @@ class RepresentationNetwork(nn.Module):
     def forward(self, x):
         x = x.view(-1, 32)
         x = self.fc(x)
-        x = x.view(-1, 4, 8)
         return x
 
     def get_param_mean(self):
@@ -184,7 +183,7 @@ class DynamicsNetwork(nn.Module):
         x = self.fc2(x)
         state = x
         x = self.fc3(x)
-        # x = x.view(-1, self.block_output_size_reward).unsqueeze(0)
+        x = x.view(-1, 4, 9)
         value_prefix, reward_hidden = self.lstm(x, reward_hidden)
         value_prefix = value_prefix.squeeze(0)
         value_prefix = self.bn_value_prefix(value_prefix)
@@ -272,7 +271,6 @@ class PredictionNetwork(nn.Module):
 
     def forward(self, x):
         # torch.Size([4, 32])
-        x = x.view(-1, 32)
         x = self.fc(x)
         value = self.fc_value(x)
         policy = self.fc_policy(x)
@@ -498,4 +496,3 @@ class EfficientZeroNet(BaseNet):
             return proj
         else:
             return proj.detach()
-
