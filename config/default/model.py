@@ -1,4 +1,5 @@
 import math
+from re import X
 import torch
 
 import numpy as np
@@ -110,6 +111,7 @@ class RepresentationNetwork(nn.Module):
     def forward(self, x):
         x = x.view(-1, 32)
         x = self.fc(x)
+        x = x.view(-1, 4, 8)
         return x
 
     def get_param_mean(self):
@@ -153,27 +155,27 @@ class DynamicsNetwork(nn.Module):
             True -> zero initialization for the last layer of reward mlp
         """
         super().__init__()
-        self.num_channels = num_channels
+        # self.num_channels = num_channels
         self.lstm_hidden_size = lstm_hidden_size
 
-        self.conv = conv1x1(num_channels, num_channels - 1)
-        self.bn = nn.BatchNorm2d(num_channels - 1, momentum=momentum)
-        self.resblocks = nn.ModuleList(
-            [ResidualBlock(num_channels - 1, num_channels - 1, momentum=momentum) for _ in range(num_blocks)]
-        )
+        # self.conv = conv1x1(num_channels, num_channels - 1)
+        # self.bn = nn.BatchNorm2d(num_channels - 1, momentum=momentum)
+        # self.resblocks = nn.ModuleList(
+        #     [ResidualBlock(num_channels - 1, num_channels - 1, momentum=momentum) for _ in range(num_blocks)]
+        # )
 
-        self.reward_resblocks = nn.ModuleList(
-            [ResidualBlock(num_channels - 1, num_channels - 1, momentum=momentum) for _ in range(num_blocks)]
-        )
+        # self.reward_resblocks = nn.ModuleList(
+        #     [ResidualBlock(num_channels - 1, num_channels - 1, momentum=momentum) for _ in range(num_blocks)]
+        # )
 
-        self.conv1x1_reward = nn.Conv2d(num_channels - 1, reduced_channels_reward, 1)
-        self.bn_reward = nn.BatchNorm2d(reduced_channels_reward, momentum=momentum)
-        self.block_output_size_reward = block_output_size_reward
-        self.lstm = nn.LSTM(input_size=self.block_output_size_reward, hidden_size=self.lstm_hidden_size)
-        self.bn_value_prefix = nn.BatchNorm1d(self.lstm_hidden_size, momentum=momentum)
+        # self.conv1x1_reward = nn.Conv2d(num_channels - 1, reduced_channels_reward, 1)
+        # self.bn_reward = nn.BatchNorm2d(reduced_channels_reward, momentum=momentum)
+        self.reward_size = block_output_size_reward
+        self.lstm = nn.LSTM(input_size=self.reward_size, hidden_size=self.lstm_hidden_size)
+        # self.bn_value_prefix = nn.BatchNorm1d(self.lstm_hidden_size, momentum=momentum)
         self.fc = mlp(self.lstm_hidden_size, fc_reward_layers, full_support_size, init_zero=init_zero, momentum=momentum)
-        self.fc2 = mlp(32, [32, 32], 32, momentum=momentum)
-        self.fc3 = mlp(32, [32, 32], 1, momentum=momentum)
+        self.fc2 = mlp(36, [36, 36], self.reward_size, momentum=momentum)
+        self.fc3 = mlp(self.reward_size, [36, 36], 1, momentum=momentum)
 
 
 
@@ -254,35 +256,26 @@ class PredictionNetwork(nn.Module):
             True -> zero initialization for the last layer of value/policy mlp
         """
         super().__init__()
-        self.resblocks = nn.ModuleList(
-            [ResidualBlock(num_channels, num_channels, momentum=momentum) for _ in range(num_blocks)]
-        )
+        # self.resblocks = nn.ModuleList(
+        #     [ResidualBlock(num_channels, num_channels, momentum=momentum) for _ in range(num_blocks)]
+        # )
 
-        self.conv1x1_value = nn.Conv2d(num_channels, reduced_channels_value, 1)
-        self.conv1x1_policy = nn.Conv2d(num_channels, reduced_channels_policy, 1)
-        self.bn_value = nn.BatchNorm2d(reduced_channels_value, momentum=momentum)
-        self.bn_policy = nn.BatchNorm2d(reduced_channels_policy, momentum=momentum)
+        # self.conv1x1_value = nn.Conv2d(num_channels, reduced_channels_value, 1)
+        # self.conv1x1_policy = nn.Conv2d(num_channels, reduced_channels_policy, 1)
+        # self.bn_value = nn.BatchNorm2d(reduced_channels_value, momentum=momentum)
+        # self.bn_policy = nn.BatchNorm2d(reduced_channels_policy, momentum=momentum)
         self.block_output_size_value = block_output_size_value
         self.block_output_size_policy = block_output_size_policy
+        self.fc = mlp(32, [32, 32], 16, momentum=momentum)
         self.fc_value = mlp(self.block_output_size_value, fc_value_layers, full_support_size, init_zero=init_zero, momentum=momentum)
         self.fc_policy = mlp(self.block_output_size_policy, fc_policy_layers, action_space_size, init_zero=init_zero, momentum=momentum)
 
     def forward(self, x):
-        print('cp1',x.shape)
-        for block in self.resblocks:
-            x = block(x)
-        value = self.conv1x1_value(x)
-        value = self.bn_value(value)
-        value = nn.functional.relu(value)
-
-        policy = self.conv1x1_policy(x)
-        policy = self.bn_policy(policy)
-        policy = nn.functional.relu(policy)
-
-        value = value.view(-1, self.block_output_size_value)
-        policy = policy.view(-1, self.block_output_size_policy)
-        value = self.fc_value(value)
-        policy = self.fc_policy(policy)
+        # torch.Size([4, 32])
+        x = x.view(-1, 32)
+        x = self.fc(x)
+        value = self.fc_value(x)
+        policy = self.fc_policy(x)
         return policy, value
 
 
@@ -471,21 +464,13 @@ class EfficientZeroNet(BaseNet):
 
     def dynamics(self, encoded_state, reward_hidden, action):
         # Stack encoded_state with a game specific one hot encoded action
+
         action_one_hot = (
-            torch.ones(
-                (
-                    encoded_state.shape[0],
-                    1,
-                    encoded_state.shape[2],
-                    encoded_state.shape[3],
-                )
-            )
+            torch.zeros((action.shape[0], self.action_space_size))
             .to(action.device)
             .float()
         )
-        action_one_hot = (
-            action[:, :, None, None] * action_one_hot / self.action_space_size
-        )
+        action_one_hot.scatter_(1, action.long(), 1.0)
         x = torch.cat((encoded_state, action_one_hot), dim=1)
         next_encoded_state, reward_hidden, value_prefix = self.dynamics_network(x, reward_hidden)
 
