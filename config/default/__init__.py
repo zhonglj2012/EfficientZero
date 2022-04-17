@@ -94,8 +94,8 @@ class DefaultConfig(BaseConfig):
 
     def set_game(self, env_name, save_video=False, save_path=None, video_callable=None):
         self.env_name = env_name
-        obs_shape = (8, 1, 1)
-        self.obs_shape = (obs_shape[0] * self.stacked_observations, obs_shape[1], obs_shape[2])
+        obs_shape = (1, 8)
+        self.obs_shape = (obs_shape[0] * self.stacked_observations, obs_shape[1])
 
         game = self.new_game()
         self.action_space_size = game.action_space_size
@@ -145,7 +145,7 @@ class DefaultConfig(BaseConfig):
 
     def set_transforms(self):
         if self.use_augmentation:
-            self.transforms = Transforms(self.augmentation, image_shape=(self.obs_shape[1], self.obs_shape[2]))
+            self.transforms = Transforms(self.augmentation, image_shape=(self.obs_shape[1]))
 
     def transform(self, images):
         return self.transforms.transform(images)

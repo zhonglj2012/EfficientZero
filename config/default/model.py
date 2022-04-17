@@ -175,7 +175,6 @@ class RepresentationNetwork(nn.Module):
         if self.downsample:
             x = self.downsample_net(x)
         else:
-            print('cp1',x.shape)
             x = self.conv(x)
             x = self.bn(x)
             x = nn.functional.relu(x)
@@ -246,7 +245,7 @@ class DynamicsNetwork(nn.Module):
         self.fc = mlp(self.lstm_hidden_size, fc_reward_layers, full_support_size, init_zero=init_zero, momentum=momentum)
 
     def forward(self, x, reward_hidden):
-        state = x[:,:-1,:,:]
+        state = x[:,:-1,:]
         x = self.conv(x)
         x = self.bn(x)
 
@@ -454,30 +453,27 @@ class EfficientZeroNet(BaseNet):
             (
                 reduced_channels_reward
                 * math.ceil(observation_shape[1] / 16)
-                * math.ceil(observation_shape[2] / 16)
             )
             if downsample
-            else (reduced_channels_reward * observation_shape[1] * observation_shape[2])
+            else (reduced_channels_reward * observation_shape[1])
         )
 
         block_output_size_value = (
             (
                 reduced_channels_value
                 * math.ceil(observation_shape[1] / 16)
-                * math.ceil(observation_shape[2] / 16)
             )
             if downsample
-            else (reduced_channels_value * observation_shape[1] * observation_shape[2])
+            else (reduced_channels_value * observation_shape[1])
         )
 
         block_output_size_policy = (
             (
                 reduced_channels_policy
                 * math.ceil(observation_shape[1] / 16)
-                * math.ceil(observation_shape[2] / 16)
             )
             if downsample
-            else (reduced_channels_policy * observation_shape[1] * observation_shape[2])
+            else (reduced_channels_policy * observation_shape[1])
         )
 
         self.representation_network = RepresentationNetwork(
@@ -516,7 +512,7 @@ class EfficientZeroNet(BaseNet):
         )
 
         # projection
-        in_dim = num_channels * math.ceil(observation_shape[1] / 16) * math.ceil(observation_shape[2] / 16)
+        in_dim = num_channels * math.ceil(observation_shape[1] / 16)
         self.porjection_in_dim = in_dim
         self.projection = nn.Sequential(
             nn.Linear(self.porjection_in_dim, self.proj_hid),
@@ -555,14 +551,13 @@ class EfficientZeroNet(BaseNet):
                     encoded_state.shape[0],
                     1,
                     encoded_state.shape[2],
-                    encoded_state.shape[3],
                 )
             )
             .to(action.device)
             .float()
         )
         action_one_hot = (
-            action[:, :, None, None] * action_one_hot / self.action_space_size
+            action[:, :, None] * action_one_hot / self.action_space_size
         )
         x = torch.cat((encoded_state, action_one_hot), dim=1)
         next_encoded_state, reward_hidden, value_prefix = self.dynamics_network(x, reward_hidden)
