@@ -50,8 +50,8 @@ def mlp(
 
 
 def conv3x3(in_channels, out_channels, stride=1):
-    return nn.Conv2d(
-        in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False
+    return nn.Conv1d(
+        in_channels, out_channels, kernel_size=1, stride=stride, padding=1, bias=False
     )
 
 
@@ -60,9 +60,9 @@ class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, downsample=None, stride=1, momentum=0.1):
         super().__init__()
         self.conv1 = conv3x3(in_channels, out_channels, stride)
-        self.bn1 = nn.BatchNorm2d(out_channels, momentum=momentum)
+        self.bn1 = nn.BatchNorm1d(out_channels, momentum=momentum)
         self.conv2 = conv3x3(out_channels, out_channels)
-        self.bn2 = nn.BatchNorm2d(out_channels, momentum=momentum)
+        self.bn2 = nn.BatchNorm1d(out_channels, momentum=momentum)
         self.downsample = downsample
 
     def forward(self, x):
@@ -87,22 +87,22 @@ class ResidualBlock(nn.Module):
 class DownSample(nn.Module):
     def __init__(self, in_channels, out_channels, momentum=0.1):
         super().__init__()
-        self.conv1 = nn.Conv2d(
+        self.conv1 = nn.Conv1d(
             in_channels,
             out_channels // 2,
-            kernel_size=3,
+            kernel_size=1,
             stride=2,
             padding=1,
             bias=False,
         )
-        self.bn1 = nn.BatchNorm2d(out_channels // 2, momentum=momentum)
+        self.bn1 = nn.BatchNorm1d(out_channels // 2, momentum=momentum)
         self.resblocks1 = nn.ModuleList(
             [ResidualBlock(out_channels // 2, out_channels // 2, momentum=momentum) for _ in range(1)]
         )
-        self.conv2 = nn.Conv2d(
+        self.conv2 = nn.Conv1d(
             out_channels // 2,
             out_channels,
-            kernel_size=3,
+            kernel_size=1,
             stride=2,
             padding=1,
             bias=False,
@@ -111,11 +111,11 @@ class DownSample(nn.Module):
         self.resblocks2 = nn.ModuleList(
             [ResidualBlock(out_channels, out_channels, momentum=momentum) for _ in range(1)]
         )
-        self.pooling1 = nn.AvgPool2d(kernel_size=3, stride=2, padding=1)
+        self.pooling1 = nn.AvgPool1d(kernel_size=1, stride=2, padding=1)
         self.resblocks3 = nn.ModuleList(
             [ResidualBlock(out_channels, out_channels, momentum=momentum) for _ in range(1)]
         )
-        self.pooling2 = nn.AvgPool2d(kernel_size=3, stride=2, padding=1)
+        self.pooling2 = nn.AvgPool1d(kernel_size=1, stride=2, padding=1)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -166,7 +166,7 @@ class RepresentationNetwork(nn.Module):
             observation_shape[0],
             num_channels,
         )
-        self.bn = nn.BatchNorm2d(num_channels, momentum=momentum)
+        self.bn = nn.BatchNorm1d(num_channels, momentum=momentum)
         self.resblocks = nn.ModuleList(
             [ResidualBlock(num_channels, num_channels, momentum=momentum) for _ in range(num_blocks)]
         )
@@ -175,6 +175,7 @@ class RepresentationNetwork(nn.Module):
         if self.downsample:
             x = self.downsample_net(x)
         else:
+            print('cp1',x.shape)
             x = self.conv(x)
             x = self.bn(x)
             x = nn.functional.relu(x)
@@ -228,7 +229,7 @@ class DynamicsNetwork(nn.Module):
         self.lstm_hidden_size = lstm_hidden_size
 
         self.conv = conv3x3(num_channels, num_channels - 1)
-        self.bn = nn.BatchNorm2d(num_channels - 1, momentum=momentum)
+        self.bn = nn.BatchNorm1d(num_channels - 1, momentum=momentum)
         self.resblocks = nn.ModuleList(
             [ResidualBlock(num_channels - 1, num_channels - 1, momentum=momentum) for _ in range(num_blocks)]
         )
@@ -237,8 +238,8 @@ class DynamicsNetwork(nn.Module):
             [ResidualBlock(num_channels - 1, num_channels - 1, momentum=momentum) for _ in range(num_blocks)]
         )
 
-        self.conv1x1_reward = nn.Conv2d(num_channels - 1, reduced_channels_reward, 1)
-        self.bn_reward = nn.BatchNorm2d(reduced_channels_reward, momentum=momentum)
+        self.conv1x1_reward = nn.Conv1d(num_channels - 1, reduced_channels_reward, 1)
+        self.bn_reward = nn.BatchNorm1d(reduced_channels_reward, momentum=momentum)
         self.block_output_size_reward = block_output_size_reward
         self.lstm = nn.LSTM(input_size=self.block_output_size_reward, hidden_size=self.lstm_hidden_size)
         self.bn_value_prefix = nn.BatchNorm1d(self.lstm_hidden_size, momentum=momentum)
@@ -336,10 +337,10 @@ class PredictionNetwork(nn.Module):
             [ResidualBlock(num_channels, num_channels, momentum=momentum) for _ in range(num_blocks)]
         )
 
-        self.conv1x1_value = nn.Conv2d(num_channels, reduced_channels_value, 1)
-        self.conv1x1_policy = nn.Conv2d(num_channels, reduced_channels_policy, 1)
-        self.bn_value = nn.BatchNorm2d(reduced_channels_value, momentum=momentum)
-        self.bn_policy = nn.BatchNorm2d(reduced_channels_policy, momentum=momentum)
+        self.conv1x1_value = nn.Conv1d(num_channels, reduced_channels_value, 1)
+        self.conv1x1_policy = nn.Conv1d(num_channels, reduced_channels_policy, 1)
+        self.bn_value = nn.BatchNorm1d(reduced_channels_value, momentum=momentum)
+        self.bn_policy = nn.BatchNorm1d(reduced_channels_policy, momentum=momentum)
         self.block_output_size_value = block_output_size_value
         self.block_output_size_policy = block_output_size_policy
         self.fc_value = mlp(self.block_output_size_value, fc_value_layers, full_support_size, init_zero=init_zero, momentum=momentum)
@@ -383,10 +384,10 @@ class EfficientZeroNet(BaseNet):
         inverse_reward_transform,
         lstm_hidden_size,
         bn_mt=0.1,
-        proj_hid=256,
-        proj_out=256,
-        pred_hid=64,
-        pred_out=256,
+        proj_hid=32,
+        proj_out=32,
+        pred_hid=4,
+        pred_out=32,
         init_zero=False,
         state_norm=False
     ):

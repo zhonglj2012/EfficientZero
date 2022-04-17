@@ -72,15 +72,13 @@ class DefaultConfig(BaseConfig):
 
         self.bn_mt = 0.1
         self.blocks = 1  # Number of blocks in the ResNet
-        self.channels = 64  # Number of channels in the ResNet
-        if self.gray_scale:
-            self.channels = 32
-        self.reduced_channels_reward = 16  # x36 Number of channels in reward head
-        self.reduced_channels_value = 16  # x36 Number of channels in value head
-        self.reduced_channels_policy = 16  # x36 Number of channels in policy head
-        self.resnet_fc_reward_layers = [32]  # Define the hidden layers in the reward head of the dynamic network
-        self.resnet_fc_value_layers = [32]  # Define the hidden layers in the value head of the prediction network
-        self.resnet_fc_policy_layers = [32]  # Define the hidden layers in the policy head of the prediction network
+        self.channels = 16  # Number of channels in the ResNet
+        self.reduced_channels_reward = 8  # x36 Number of channels in reward head
+        self.reduced_channels_value = 8  # x36 Number of channels in value head
+        self.reduced_channels_policy = 8  # x36 Number of channels in policy head
+        self.resnet_fc_reward_layers = [16]  # Define the hidden layers in the reward head of the dynamic network
+        self.resnet_fc_value_layers = [16]  # Define the hidden layers in the value head of the prediction network
+        self.resnet_fc_policy_layers = [16]  # Define the hidden layers in the policy head of the prediction network
         self.downsample = False  # Downsample observations before representation network (See paper appendix Network Architecture)
 
     def visit_softmax_temperature_fn(self, num_moves, trained_steps):
