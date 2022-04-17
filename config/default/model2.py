@@ -1,4 +1,5 @@
 import math
+from re import X
 import torch
 
 import numpy as np
@@ -49,9 +50,9 @@ def mlp(
     return nn.Sequential(*layers)
 
 
-def conv3x3(in_channels, out_channels, stride=1):
+def conv1x1(in_channels, out_channels, stride=1):
     return nn.Conv2d(
-        in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False
+        in_channels, out_channels, kernel_size=1, stride=stride, padding=1, bias=False
     )
 
 
@@ -59,9 +60,9 @@ def conv3x3(in_channels, out_channels, stride=1):
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, downsample=None, stride=1, momentum=0.1):
         super().__init__()
-        self.conv1 = conv3x3(in_channels, out_channels, stride)
+        self.conv1 = conv1x1(in_channels, out_channels, stride)
         self.bn1 = nn.BatchNorm2d(out_channels, momentum=momentum)
-        self.conv2 = conv3x3(out_channels, out_channels)
+        self.conv2 = conv1x1(out_channels, out_channels)
         self.bn2 = nn.BatchNorm2d(out_channels, momentum=momentum)
         self.downsample = downsample
 
@@ -81,57 +82,6 @@ class ResidualBlock(nn.Module):
         out += identity
         out = nn.functional.relu(out)
         return out
-
-
-# Downsample observations before representation network (See paper appendix Network Architecture)
-class DownSample(nn.Module):
-    def __init__(self, in_channels, out_channels, momentum=0.1):
-        super().__init__()
-        self.conv1 = nn.Conv2d(
-            in_channels,
-            out_channels // 2,
-            kernel_size=3,
-            stride=2,
-            padding=1,
-            bias=False,
-        )
-        self.bn1 = nn.BatchNorm2d(out_channels // 2, momentum=momentum)
-        self.resblocks1 = nn.ModuleList(
-            [ResidualBlock(out_channels // 2, out_channels // 2, momentum=momentum) for _ in range(1)]
-        )
-        self.conv2 = nn.Conv2d(
-            out_channels // 2,
-            out_channels,
-            kernel_size=3,
-            stride=2,
-            padding=1,
-            bias=False,
-        )
-        self.downsample_block = ResidualBlock(out_channels // 2, out_channels, momentum=momentum, stride=2, downsample=self.conv2)
-        self.resblocks2 = nn.ModuleList(
-            [ResidualBlock(out_channels, out_channels, momentum=momentum) for _ in range(1)]
-        )
-        self.pooling1 = nn.AvgPool2d(kernel_size=3, stride=2, padding=1)
-        self.resblocks3 = nn.ModuleList(
-            [ResidualBlock(out_channels, out_channels, momentum=momentum) for _ in range(1)]
-        )
-        self.pooling2 = nn.AvgPool2d(kernel_size=3, stride=2, padding=1)
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = nn.functional.relu(x)
-        for block in self.resblocks1:
-            x = block(x)
-        x = self.downsample_block(x)
-        for block in self.resblocks2:
-            x = block(x)
-        x = self.pooling1(x)
-        for block in self.resblocks3:
-            x = block(x)
-        x = self.pooling2(x)
-        return x
-
 
 # Encode the observations into hidden states
 class RepresentationNetwork(nn.Module):
@@ -156,31 +106,11 @@ class RepresentationNetwork(nn.Module):
             True -> do downsampling for observations. (For board games, do not need)
         """
         super().__init__()
-        self.downsample = downsample
-        if self.downsample:
-            self.downsample_net = DownSample(
-                observation_shape[0],
-                num_channels,
-            )
-        self.conv = conv3x3(
-            observation_shape[0],
-            num_channels,
-        )
-        self.bn = nn.BatchNorm2d(num_channels, momentum=momentum)
-        self.resblocks = nn.ModuleList(
-            [ResidualBlock(num_channels, num_channels, momentum=momentum) for _ in range(num_blocks)]
-        )
+        self.fc = mlp(32, [32, 32], 32, momentum=momentum)
 
     def forward(self, x):
-        if self.downsample:
-            x = self.downsample_net(x)
-        else:
-            x = self.conv(x)
-            x = self.bn(x)
-            x = nn.functional.relu(x)
-
-        for block in self.resblocks:
-            x = block(x)
+        x = x.view(-1, 32)
+        x = self.fc(x)
         return x
 
     def get_param_mean(self):
@@ -201,7 +131,7 @@ class DynamicsNetwork(nn.Module):
         fc_reward_layers,
         full_support_size,
         block_output_size_reward,
-        lstm_hidden_size=64,
+        lstm_hidden_size=32,
         momentum=0.1,
         init_zero=False,
     ):
@@ -224,47 +154,38 @@ class DynamicsNetwork(nn.Module):
             True -> zero initialization for the last layer of reward mlp
         """
         super().__init__()
-        self.num_channels = num_channels
+        # self.num_channels = num_channels
         self.lstm_hidden_size = lstm_hidden_size
 
-        self.conv = conv3x3(num_channels, num_channels - 1)
-        self.bn = nn.BatchNorm2d(num_channels - 1, momentum=momentum)
-        self.resblocks = nn.ModuleList(
-            [ResidualBlock(num_channels - 1, num_channels - 1, momentum=momentum) for _ in range(num_blocks)]
-        )
+        # self.conv = conv1x1(num_channels, num_channels - 1)
+        # self.bn = nn.BatchNorm2d(num_channels - 1, momentum=momentum)
+        # self.resblocks = nn.ModuleList(
+        #     [ResidualBlock(num_channels - 1, num_channels - 1, momentum=momentum) for _ in range(num_blocks)]
+        # )
 
-        self.reward_resblocks = nn.ModuleList(
-            [ResidualBlock(num_channels - 1, num_channels - 1, momentum=momentum) for _ in range(num_blocks)]
-        )
+        # self.reward_resblocks = nn.ModuleList(
+        #     [ResidualBlock(num_channels - 1, num_channels - 1, momentum=momentum) for _ in range(num_blocks)]
+        # )
 
-        self.conv1x1_reward = nn.Conv2d(num_channels - 1, reduced_channels_reward, 1)
-        self.bn_reward = nn.BatchNorm2d(reduced_channels_reward, momentum=momentum)
-        self.block_output_size_reward = block_output_size_reward
-        self.lstm = nn.LSTM(input_size=self.block_output_size_reward, hidden_size=self.lstm_hidden_size)
-        self.bn_value_prefix = nn.BatchNorm1d(self.lstm_hidden_size, momentum=momentum)
+        # self.conv1x1_reward = nn.Conv2d(num_channels - 1, reduced_channels_reward, 1)
+        # self.bn_reward = nn.BatchNorm2d(reduced_channels_reward, momentum=momentum)
+        self.reward_size = 4
+        # self.bn_value_prefix = nn.BatchNorm1d(self.lstm_hidden_size, momentum=momentum)
+        self.fc2 = mlp(36, [36, 36], self.reward_size, momentum=momentum)
+        self.fc3 = mlp(self.reward_size, [36, 36], full_support_size, momentum=momentum)
+        self.lstm = nn.LSTM(input_size=self.reward_size, hidden_size=self.lstm_hidden_size)
         self.fc = mlp(self.lstm_hidden_size, fc_reward_layers, full_support_size, init_zero=init_zero, momentum=momentum)
 
+
+
     def forward(self, x, reward_hidden):
-        state = x[:,:-1,:,:]
-        x = self.conv(x)
-        x = self.bn(x)
-
-        x += state
-        x = nn.functional.relu(x)
-
-        for block in self.resblocks:
-            x = block(x)
+        x = self.fc2(x)
         state = x
-
-        x = self.conv1x1_reward(x)
-        x = self.bn_reward(x)
-        x = nn.functional.relu(x)
-
+        x = self.fc3(x)
+        print('entry2', x.shape)
         x = x.view(-1, self.block_output_size_reward).unsqueeze(0)
         value_prefix, reward_hidden = self.lstm(x, reward_hidden)
         value_prefix = value_prefix.squeeze(0)
-        value_prefix = self.bn_value_prefix(value_prefix)
-        value_prefix = nn.functional.relu(value_prefix)
         value_prefix = self.fc(value_prefix)
 
         return state, reward_hidden, value_prefix
@@ -332,34 +253,25 @@ class PredictionNetwork(nn.Module):
             True -> zero initialization for the last layer of value/policy mlp
         """
         super().__init__()
-        self.resblocks = nn.ModuleList(
-            [ResidualBlock(num_channels, num_channels, momentum=momentum) for _ in range(num_blocks)]
-        )
+        # self.resblocks = nn.ModuleList(
+        #     [ResidualBlock(num_channels, num_channels, momentum=momentum) for _ in range(num_blocks)]
+        # )
 
-        self.conv1x1_value = nn.Conv2d(num_channels, reduced_channels_value, 1)
-        self.conv1x1_policy = nn.Conv2d(num_channels, reduced_channels_policy, 1)
-        self.bn_value = nn.BatchNorm2d(reduced_channels_value, momentum=momentum)
-        self.bn_policy = nn.BatchNorm2d(reduced_channels_policy, momentum=momentum)
+        # self.conv1x1_value = nn.Conv2d(num_channels, reduced_channels_value, 1)
+        # self.conv1x1_policy = nn.Conv2d(num_channels, reduced_channels_policy, 1)
+        # self.bn_value = nn.BatchNorm2d(reduced_channels_value, momentum=momentum)
+        # self.bn_policy = nn.BatchNorm2d(reduced_channels_policy, momentum=momentum)
         self.block_output_size_value = block_output_size_value
         self.block_output_size_policy = block_output_size_policy
+        self.fc = mlp(32, [32, 32], 16, momentum=momentum)
         self.fc_value = mlp(self.block_output_size_value, fc_value_layers, full_support_size, init_zero=init_zero, momentum=momentum)
         self.fc_policy = mlp(self.block_output_size_policy, fc_policy_layers, action_space_size, init_zero=init_zero, momentum=momentum)
 
     def forward(self, x):
-        for block in self.resblocks:
-            x = block(x)
-        value = self.conv1x1_value(x)
-        value = self.bn_value(value)
-        value = nn.functional.relu(value)
-
-        policy = self.conv1x1_policy(x)
-        policy = self.bn_policy(policy)
-        policy = nn.functional.relu(policy)
-
-        value = value.view(-1, self.block_output_size_value)
-        policy = policy.view(-1, self.block_output_size_policy)
-        value = self.fc_value(value)
-        policy = self.fc_policy(policy)
+        # torch.Size([4, 32])
+        x = self.fc(x)
+        value = self.fc_value(x)
+        policy = self.fc_policy(x)
         return policy, value
 
 
@@ -548,21 +460,13 @@ class EfficientZeroNet(BaseNet):
 
     def dynamics(self, encoded_state, reward_hidden, action):
         # Stack encoded_state with a game specific one hot encoded action
+
         action_one_hot = (
-            torch.ones(
-                (
-                    encoded_state.shape[0],
-                    1,
-                    encoded_state.shape[2],
-                    encoded_state.shape[3],
-                )
-            )
+            torch.zeros((action.shape[0], self.action_space_size))
             .to(action.device)
             .float()
         )
-        action_one_hot = (
-            action[:, :, None, None] * action_one_hot / self.action_space_size
-        )
+        action_one_hot.scatter_(1, action.long(), 1.0)
         x = torch.cat((encoded_state, action_one_hot), dim=1)
         next_encoded_state, reward_hidden, value_prefix = self.dynamics_network(x, reward_hidden)
 
