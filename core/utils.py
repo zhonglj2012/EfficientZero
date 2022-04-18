@@ -325,8 +325,9 @@ def prepare_observation_lst(observation_lst):
     """
     # B, S, W, H, C
     observation_lst = np.array(observation_lst, dtype=np.uint8)
+    print('cp1',observation_lst.shape)
     observation_lst = np.moveaxis(observation_lst, -1, 2)
-
+    print('cp2',observation_lst.shape)
     shape = observation_lst.shape
     observation_lst = observation_lst.reshape((shape[0], -1, shape[-2], shape[-1]))
 

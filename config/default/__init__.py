@@ -28,7 +28,7 @@ class DefaultConfig(BaseConfig):
             dirichlet_alpha=0.3,
             value_delta_max=0.01,
             num_simulations=5,
-            batch_size=32,
+            batch_size=16,
             td_steps=5,
             num_actors=1,
             # network initialization/ & normalization

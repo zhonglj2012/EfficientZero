@@ -156,12 +156,6 @@ class RepresentationNetwork(nn.Module):
             True -> do downsampling for observations. (For board games, do not need)
         """
         super().__init__()
-        self.downsample = downsample
-        if self.downsample:
-            self.downsample_net = DownSample(
-                observation_shape[0],
-                num_channels,
-            )
         self.conv = conv1x1(
             observation_shape[0],
             num_channels,
@@ -172,12 +166,9 @@ class RepresentationNetwork(nn.Module):
         )
 
     def forward(self, x):
-        if self.downsample:
-            x = self.downsample_net(x)
-        else:
-            x = self.conv(x)
-            x = self.bn(x)
-            x = nn.functional.relu(x)
+        x = self.conv(x)
+        x = self.bn(x)
+        x = nn.functional.relu(x)
 
         for block in self.resblocks:
             x = block(x)
